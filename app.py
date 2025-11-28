@@ -2,9 +2,10 @@
 import os
 import sys
 import json
+import re
 import asyncio
 from contextlib import AsyncExitStack
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import gradio as gr
 from mcp import ClientSession, StdioServerParameters
@@ -16,6 +17,161 @@ SERVER_PATH = "creator_mcp_server.py"
 # Create a dedicated asyncio loop
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
+
+
+# --------- Helper functions for parsing tool output ---------
+
+
+def _safe_json_loads(text: str) -> Optional[Union[Dict[str, Any], List[Any]]]:
+    """
+    Try json.loads; return None if it fails.
+    """
+    try:
+        return json.loads(text)
+    except Exception:
+        return None
+
+
+def _parse_multi_json_objects(text: str) -> List[Any]:
+    """
+    Handle the case where the model returns multiple JSON objects
+    one after another, e.g.:
+
+        { ... } { ... } { ... }
+
+    This is not valid JSON as a whole, but each {...} is.
+    We extract all object substrings and parse them individually.
+    """
+    objs: List[Any] = []
+    # Find { ... } blocks (non-greedy, across newlines)
+    matches = re.findall(r"\{.*?\}", text, flags=re.DOTALL)
+    for m in matches:
+        parsed = _safe_json_loads(m)
+        if parsed is not None:
+            objs.append(parsed)
+        else:
+            # Fallback: keep raw chunk
+            objs.append({"raw": m})
+    return objs
+
+
+def _normalise_posts(raw: Any) -> List[Dict[str, Any]]:
+    """
+    Take whatever the tool returned for posts (string/dict/list)
+    and normalise it to a list[dict] with at least:
+    - title
+    - hook
+    - body
+    - CTA
+    - format_hint
+    """
+    # Case 1: raw is already a Python list/dict (from JSON)
+    if isinstance(raw, dict):
+        # Maybe {"posts": [...]}
+        if "posts" in raw and isinstance(raw["posts"], list):
+            items = raw["posts"]
+        else:
+            items = [raw]
+    elif isinstance(raw, list):
+        items = raw
+    elif isinstance(raw, str):
+        text = raw.strip()
+
+        # Try simple json.loads first
+        parsed = _safe_json_loads(text)
+        if parsed is not None:
+            return _normalise_posts(parsed)
+
+        # Try extracting multiple JSON objects
+        multi = _parse_multi_json_objects(text)
+        if multi:
+            items = multi
+        else:
+            # As a last resort: treat the entire string as one "post"
+            return [{
+                "title": "Post",
+                "hook": text,
+                "body": text,
+                "CTA": "",
+                "format_hint": "raw-text",
+            }]
+    else:
+        # Unknown type: just wrap as one generic post
+        return [{
+            "title": "Post",
+            "hook": str(raw),
+            "body": str(raw),
+            "CTA": "",
+            "format_hint": "raw",
+        }]
+
+    # Now ensure everything in items is a dict with the expected keys
+    normalised: List[Dict[str, Any]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            item = {
+                "title": "Post",
+                "hook": str(item),
+                "body": str(item),
+                "CTA": "",
+                "format_hint": "raw",
+            }
+        normalised.append({
+            "title": item.get("title", "Post"),
+            "hook": item.get("hook", ""),
+            "body": item.get("body", ""),
+            "CTA": item.get("CTA", ""),
+            "format_hint": item.get("format_hint", "general"),
+        })
+    return normalised
+
+
+def _normalise_brand_profile(raw: Any) -> Dict[str, Any]:
+    """
+    Ensure brand_profile is a dict. Try to parse JSON if it's a string.
+    """
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, str):
+        parsed = _safe_json_loads(raw.strip())
+        if isinstance(parsed, dict):
+            return parsed
+        return {"raw": raw}
+    # fallback
+    return {"raw": str(raw)}
+
+
+def _normalise_pillar_summary(raw: Any) -> Dict[str, Any]:
+    """
+    Ensure pillar_summary is a dict with:
+    - summary: str
+    - key_points: list[str]
+    """
+    summary = ""
+    key_points: List[str] = []
+
+    if isinstance(raw, dict):
+        summary = str(raw.get("summary", ""))
+        kps = raw.get("key_points", [])
+        if isinstance(kps, list):
+            key_points = [str(k) for k in kps]
+    elif isinstance(raw, str):
+        parsed = _safe_json_loads(raw.strip())
+        if isinstance(parsed, dict):
+            return _normalise_pillar_summary(parsed)
+        # If it's just plain text, treat as summary
+        summary = raw
+    else:
+        summary = str(raw)
+
+    return {
+        "summary": summary,
+        "key_points": key_points,
+        **({k: v for k, v in raw.items() if k not in ["summary", "key_points"]} if isinstance(raw, dict) else {}),
+    }
+
+
+# --------- MCP Client wrapper ---------
 
 
 class MCPClient:
@@ -64,7 +220,9 @@ class MCPClient:
 
     def call_tool(self, name: str, args: Dict[str, Any]) -> Any:
         """
-        Synchronously call an MCP tool and parse JSON if possible.
+        Synchronously call an MCP tool and return its content as:
+        - parsed JSON (dict/list) if possible
+        - otherwise, raw text
         """
         if not self.session:
             raise RuntimeError("MCP session not initialized")
@@ -72,11 +230,10 @@ class MCPClient:
         result = loop.run_until_complete(self.session.call_tool(name, args))
         content = result.content
 
-        # FastMCP tools typically return a list of Text contents
         texts: List[str] = []
         if isinstance(content, list):
             for c in content:
-                # c likely has a .text attribute if it's text content
+                # For MCP TextContent, we expect a .text attribute
                 if hasattr(c, "text"):
                     texts.append(c.text)
                 else:
@@ -88,14 +245,16 @@ class MCPClient:
             else:
                 text = str(content)
 
-        # Try to parse JSON; if it fails, just return the raw text
-        try:
-            return json.loads(text)
-        except Exception:
-            return text
+        parsed = _safe_json_loads(text)
+        if parsed is not None:
+            return parsed
+        return text
 
 
 mcp_client = MCPClient()
+
+
+# --------- Orchestration function ---------
 
 
 def run_linkedin_agent(
@@ -113,44 +272,28 @@ def run_linkedin_agent(
         return "⚠️ Please paste your pillar content."
 
     # 1) Brand voice
-    brand_profile = mcp_client.call_tool(
+    brand_profile_raw = mcp_client.call_tool(
         "analyze_brand_voice",
         {"brand_desc": brand_desc, "samples": sample_posts or ""},
     )
-
-    # Normalise brand_profile: expect a dict
-    if isinstance(brand_profile, str):
-        try:
-            brand_profile = json.loads(brand_profile)
-        except Exception:
-            brand_profile = {}
-    elif not isinstance(brand_profile, dict):
-        brand_profile = {}
+    brand_profile = _normalise_brand_profile(brand_profile_raw)
 
     # If tool reported an error, surface it clearly
     if isinstance(brand_profile, dict) and "error" in brand_profile:
         return f"❌ Error from analyze_brand_voice tool:\n\n{brand_profile['error']}"
 
     # 2) Pillar summary
-    pillar_summary = mcp_client.call_tool(
+    pillar_summary_raw = mcp_client.call_tool(
         "summarise_pillar",
         {"pillar_text": pillar_text, "brand_profile": brand_profile},
     )
+    pillar_summary = _normalise_pillar_summary(pillar_summary_raw)
 
-    # Normalise pillar_summary: handle both string JSON and dict
-    if isinstance(pillar_summary, str):
-        try:
-            pillar_summary = json.loads(pillar_summary)
-        except Exception:
-            pillar_summary = {"summary": pillar_summary, "key_points": []}
-    elif not isinstance(pillar_summary, dict):
-        pillar_summary = {"summary": str(pillar_summary), "key_points": []}
-
-    if "error" in pillar_summary:
+    if isinstance(pillar_summary, dict) and "error" in pillar_summary:
         return f"❌ Error from summarise_pillar tool:\n\n{pillar_summary['error']}"
 
     # 3) LinkedIn posts
-    posts = mcp_client.call_tool(
+    posts_raw = mcp_client.call_tool(
         "generate_linkedin_posts",
         {
             "pillar_text": pillar_text,
@@ -158,44 +301,9 @@ def run_linkedin_agent(
             "n_posts": int(n_posts),
         },
     )
+    posts = _normalise_posts(posts_raw)
 
-    # Normalise posts: always end up with a list[dict]
-    if isinstance(posts, str):
-        try:
-            posts = json.loads(posts)
-        except Exception:
-            posts = [{
-                "title": "Post",
-                "hook": posts,
-                "body": posts,
-                "CTA": "",
-                "format_hint": ""
-            }]
-
-    if isinstance(posts, dict):
-        # Maybe {"posts": [...]}
-        if "posts" in posts and isinstance(posts["posts"], list):
-            posts = posts["posts"]
-        else:
-            posts = [posts]
-    elif isinstance(posts, list):
-        normalised: List[Dict[str, Any]] = []
-        for item in posts:
-            if isinstance(item, dict):
-                normalised.append(item)
-            else:
-                normalised.append({
-                    "title": "Post",
-                    "hook": str(item),
-                    "body": str(item),
-                    "CTA": "",
-                    "format_hint": ""
-                })
-        posts = normalised
-    else:
-        posts = []
-
-    # Build a Markdown-style output
+    # --------- Build a Markdown-style output ---------
     sections: List[str] = []
 
     sections.append("## Brand Profile\n")
@@ -225,6 +333,7 @@ def run_linkedin_agent(
 
 
 # ---------------- Gradio UI ----------------
+
 
 with gr.Blocks(title="LinkedIn MCP Creator") as demo:
     gr.Markdown(
@@ -294,3 +403,4 @@ if __name__ == "__main__":
         server_name="0.0.0.0",
         server_port=int(os.environ.get("PORT", 7860)),
     )
+
