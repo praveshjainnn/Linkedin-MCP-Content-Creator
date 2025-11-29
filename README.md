@@ -9,11 +9,14 @@ app_file: app.py
 pinned: false
 license: mit
 short_description: MCP-powered app to turn pillar content into LinkedIn posts
+tags:
+  - mcp-in-action-track-creative
+  - building-mcp-track-creative
 ---
 
 # LinkedIn MCP Creator
 
-**Tags:** `mcp-in-action-track-creative` · `mcp` · `gradio` · `agents` · `openai` · `linkedin` · `content-creation`
+**Tags:** `mcp-in-action-track-creative` · `building-mcp-track-creative`.`mcp` · `gradio` · `agents` · `openai` · `linkedin` · `content-creation`
 
 A Gradio + MCP app that turns your **long-form “pillar” content** into a **pack of LinkedIn posts** – using an internal MCP server powered by OpenAI.
 
