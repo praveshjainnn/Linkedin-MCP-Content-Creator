@@ -36,7 +36,7 @@ All of this is orchestrated as an **agentic workflow** inside the Gradio app usi
 
 ## 🎯 Hackathon Info
 
-- **Track:** MCP in Action (Track 2 – Creative)  
+- **Track:** MCP in Action (Track 2 – Creative)  and Building MCP (Track 1 - Creative)
 - **Organization:** MCP 1st Birthday  
 
 **Demo video:**  
