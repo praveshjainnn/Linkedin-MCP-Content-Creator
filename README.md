@@ -40,10 +40,10 @@ All of this is orchestrated as an **agentic workflow** inside the Gradio app usi
 - **Organization:** MCP 1st Birthday  
 
 **Demo video:**  
-`https://YOUR_DEMO_VIDEO_URL_HERE`
+`https://drive.google.com/file/d/1kkYsgvg4i-QRPocObVHXxwnZo2zL6ofd/view`
 
 **Social media post:**  
-`https://YOUR_LINKEDIN_POST_URL_HERE`
+`https://www.linkedin.com/posts/trisha-govender-712801a2_modelcontextprotocol-mcphackathon-openai-activity-7400510919497252864-W0UB?utm_source=share&utm_medium=member_android&rcm=ACoAABXVCr4BjSRlkhbl7o775eBjdRgSdOO53Nc`
 
 ## 🖥️ How to Use
 
