@@ -1,83 +1,52 @@
----
-title: Linkedin MCP Creator
-emoji: 📊
-colorFrom: purple
-colorTo: pink
-sdk: gradio
-sdk_version: 6.0.1
-app_file: app.py
-pinned: false
-license: mit
-short_description: MCP-powered app to turn pillar content into LinkedIn posts
-tags:
-  - mcp-in-action-track-creative
-  - building-mcp-track-creative
----
+# LinkedIn Content Creator Pro
 
-# LinkedIn MCP Creator
+An agentic AI application that genuinely automates content repurposing. Turn long-form "pillar" content—like articles, transcripts, and blog posts—into a ready-to-publish pack of LinkedIn posts, completely locally.
 
-**Tags:** `mcp-in-action-track-creative` · `building-mcp-track-creative`.`mcp` · `gradio` · `agents` · `openai` · `linkedin` · `content-creation`
+## 🚀 The Stack
+- **AI Engine:** Local Llama 3.2 via Ollama (100% free and private—no API keys required!)
+- **Agent Framework:** Model Context Protocol (MCP) orchestrating multi-step generation tasks. 
+- **Backend/API:** FastAPI (Python) with APScheduler for automated CRON tasks.
+- **Frontend:** Custom HTML/CSS/JS (Glassmorphic dark UI)
 
-A Gradio + MCP app that turns your **long-form “pillar” content** into a **pack of LinkedIn posts** – using an internal MCP server powered by OpenAI.
+## 🎯 Architecture: Manual vs Factory
 
-You paste:
+This project features two distinct modes of operation to demonstrate the difference between a simple "chat wrapper" and a true "agentic workflow".
 
-1. A short **brand / creator description**  
-2. (Optional) A few **sample posts** in your own voice  
-3. A **pillar** (article, transcript, long post)
+### 1. Manual Studio 📝
+Users paste their brand description and their long-form article into the UI. The application runs a local `llama3.2` model via MCP to:
+1. Analyze and extract the exact Brand Voice parameters.
+2. Summarize the Pillar Content into actionable bullet points.
+3. Generate multiple LinkedIn drafts applying the exact Brand Voice to the extracted points.
 
-…and the app:
+### 2. Automated Factory 🏭
+A background simulation of a true Productivity Engine. When triggered (either via API or its daily APScheduler CRON job), the application:
+1. Reaches out to the web and scrapes the newest article from its target RSS feed.
+2. Runs a **RAG (Retrieval-Augmented Generation)** step, reaching out to global tech news feeds to fetch live breaking news.
+3. Automatically synthesizes the daily breaking news with the RSS article, tying timeless content to today's news cycle. 
+4. Drafts a beautifully formatted HTML email containing the final generated LinkedIn posts and securely dispatches it to the marketing manager via SMTP.
 
-- Analyzes your **brand voice** via an MCP tool  
-- Summarizes the **pillar** and extracts key talking points  
-- Generates **multiple LinkedIn posts** with hooks, bodies, CTAs & format hints  
+## 🖥️ How to Run Locally
 
-All of this is orchestrated as an **agentic workflow** inside the Gradio app using MCP.
+### Prerequisites
+1. Install [Ollama](https://ollama.com/) on your machine.
+2. Open your terminal and run `ollama pull llama3.2` to download the free LLM model to your local machine.
 
-## 🎯 Hackathon Info
+### Start the Server
+1. Clone the repository.
+2. Install requirements (e.g., `pip install fastapi uvicorn mcp sse_starlette apscheduler`).
+3. Run the FastAPI server:
+   ```bash
+   python server.py
+   ```
+4. Open your browser and navigate to `http://localhost:1337` to view the UI.
 
-- **Track:** MCP in Action (Track 2 – Creative)  and Building MCP (Track 1 - Creative)
-- **Organization:** MCP 1st Birthday  
-
-**Demo video:**  
-`https://drive.google.com/file/d/1kkYsgvg4i-QRPocObVHXxwnZo2zL6ofd/view`
-
-**Social media post:**  
-`https://www.linkedin.com/posts/trisha-govender-712801a2_modelcontextprotocol-mcphackathon-openai-activity-7400510919497252864-W0UB?utm_source=share&utm_medium=member_android&rcm=ACoAABXVCr4BjSRlkhbl7o775eBjdRgSdOO53Nc`
-
-## 🖥️ How to Use
-
-1. Wait for:  
-   `✅ Connected to MCP server. Tools available: analyze_brand_voice, summarise_pillar, generate_linkedin_posts`
-2. Fill in:
-   - **Brand / Creator Description**
-   - **Sample LinkedIn Posts (optional)**
-   - **Pillar Content**
-   - Choose number of posts
-3. Click **“Generate LinkedIn Content Pack 🚀”**
-4. Copy the posts from the right-hand panel, lightly edit, and publish.
-
-## 🧱 Under the Hood
-
-- **MCP server** (`creator_mcp_server.py`) built with `FastMCP`, exposing:
+## 🧱 The MCP Tools under the hood
+The `creator_mcp_server.py` defines the core Agent tasks via FastMCP:
   - `analyze_brand_voice`
   - `summarise_pillar`
+  - `fetch_trending_news`
   - `generate_linkedin_posts`
-- **Gradio app** (`app.py`) is an MCP client that:
-  - Spawns the MCP server over stdio
-  - Calls tools in sequence
-  - Normalises and renders the outputs as a single content pack
-
-OpenAI is used behind the scenes (via `OPENAI_API_KEY` set as a Space secret) to power all generations.
-
-## 🔐 API Key
-
-On Hugging Face Spaces, the app reads `OPENAI_API_KEY` from the Space’s **Secrets**.  
-Users of the Space don’t need a key – if they fork or duplicate it, they’ll add their own.
 
 ## 📜 License
 
 Released under the **MIT License**.
-
-
-Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
