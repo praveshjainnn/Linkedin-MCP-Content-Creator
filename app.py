@@ -7,9 +7,9 @@ import asyncio
 from contextlib import AsyncExitStack
 from typing import Any, Dict, List, Optional, Union
 
-import gradio as gr
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
+import gradio as gr  # type: ignore
+from mcp import ClientSession, StdioServerParameters  # type: ignore
+from mcp.client.stdio import stdio_client  # type: ignore
 
 # Path to the MCP server file
 SERVER_PATH = "creator_mcp_server.py"
@@ -176,8 +176,8 @@ def _normalise_pillar_summary(raw: Any) -> Dict[str, Any]:
 
 class MCPClient:
     def __init__(self):
-        self.exit_stack: Optional[AsyncExitStack] = None
-        self.session: Optional[ClientSession] = None
+        self.exit_stack: Any = None
+        self.session: Any = None
         self.stdio = None
         self.write = None
 
@@ -199,8 +199,8 @@ class MCPClient:
             env={
                 "PYTHONIOENCODING": "utf-8",
                 "PYTHONUNBUFFERED": "1",
-                # Pass through OPENAI_API_KEY, used by creator_mcp_server.py
-                "OPENAI_API_KEY": os.environ.get("OPENAI_API_KEY", ""),
+                # Pass through GEMINI_API_KEY, used by creator_mcp_server.py
+                "GEMINI_API_KEY": os.environ.get("GEMINI_API_KEY", ""),
             },
         )
 

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinkedIn Content Creator Pro</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+
+    <div class="container">
+        <header>
+            <h1>LinkedIn Content Creator Pro</h1>
+            <p>AI-powered pillar content repurposing. Turn long-form writing into premium posts.</p>
+        </header>
+
+        <div class="grid">
+            <div class="card form-panel">
+                <div class="tabs" id="mode-tabs" style="justify-content: center; margin-bottom: 25px;">
+                    <div class="tab mode-tab active" data-target="mode-manual">Manual Studio 📝</div>
+                    <div class="tab mode-tab" data-target="mode-factory">Automated Factory 🏭</div>
+                </div>
+
+                <!-- Mode 1: Manual Generation -->
+                <div id="mode-manual" class="mode-content" style="display: block;">
+                    <form id="creator-form">
+                    <div class="form-group">
+                        <label for="brand_desc">Brand / Creator Description</label>
+                        <textarea id="brand_desc" rows="4" placeholder="Who are you? What do you talk about? Who is your audience?" required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="sample_posts">Sample LinkedIn Posts (Optional)</label>
+                        <textarea id="sample_posts" rows="4" placeholder="Paste 1-3 of your LinkedIn posts so we can match your style."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pillar_text">Pillar Content</label>
+                        <textarea id="pillar_text" rows="10" placeholder="Paste a long-form article, transcript, or detailed post you want to repurpose." required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="n_posts">Number of Outputs</label>
+                        <input type="number" id="n_posts" min="1" max="10" value="3" required>
+                    </div>
+
+                    <button type="submit" id="submit-btn" class="glass-btn">
+                        <span id="btn-text">Generate Content Pack 🚀</span>
+                        <div class="loader" id="loader"></div>
+                    </button>
+                    <div id="error-message" style="color: #ff4d4d; margin-top: 15px; display: none;"></div>
+                    </form>
+                </div>
+
+                <!-- Mode 2: Automated Pipeline -->
+                <div id="mode-factory" class="mode-content" style="display: none;">
+                    <p style="color: #a1a1aa; font-size: 0.95rem; margin-bottom: 25px; line-height: 1.5;">
+                        This mode simulates the background CRON job. It uses Python to scrape an RSS feed, injects breaking news via <strong>RAG</strong>, runs the local <strong>Llama 3.2</strong> model, and drafts an email to your marketing team.
+                    </p>
+                    
+                    <div class="form-group">
+                        <label for="trigger_feed">Target RSS Feed URL</label>
+                        <input type="url" id="trigger_feed" value="https://techcrunch.com/feed/" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="trigger_email">Target Email Address</label>
+                        <input type="email" id="trigger_email" value="marketing_manager@company.com" required>
+                    </div>
+                    
+                    <button type="button" id="trigger-btn" class="glass-btn" style="background: linear-gradient(135deg, #4c1d95, #6d28d9); margin-top: 10px;">
+                        <span id="trigger-btn-text">Execute Automated Pipeline ⚡</span>
+                        <div class="loader" id="trigger-loader"></div>
+                    </button>
+                    
+                    <div id="trigger-message" style="margin-top: 15px; white-space: pre-wrap; font-family: monospace; font-size: 0.85rem; color: #a1a1aa;"></div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Results -->
+            <div class="card results-panel" id="results-panel">
+                <div class="empty-state" id="empty-state">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    <h2>Waiting for input...</h2>
+                    <p>Your generated LinkedIn posts will magically appear here.</p>
+                </div>
+
+                <div id="results-content" style="display: none;">
+                    <div class="tabs" id="main-tabs">
+                        <div class="tab active" data-target="tab-posts">Posts</div>
+                        <div class="tab" data-target="tab-meta">Analysis Meta</div>
+                        <div class="tab" data-target="tab-email" id="tab-email-btn" style="display: none; background: rgba(139, 92, 246, 0.2); border: 1px solid rgba(139, 92, 246, 0.4);">Email Draft 📧</div>
+                    </div>
+
+                    <div id="tab-posts" class="tab-content active">
+                        <div id="posts-container"></div>
+                    </div>
+
+                    <div id="tab-meta" class="tab-content">
+                        <div class="meta-title">Brand Voice Profile</div>
+                        <div class="meta-box" id="meta-brand"></div>
+                        
+                        <div class="meta-title">Pillar Content Summary</div>
+                        <div class="meta-box" id="meta-summary"></div>
+                    </div>
+
+                    <div id="tab-email" class="tab-content">
+                        <div class="email-container" style="background: #ffffff; color: #1e293b; border-radius: 8px; overflow: hidden; font-family: 'Helvetica Neue', Arial, sans-serif;">
+                            <div class="email-header" style="background: #f8fafc; padding: 15px 20px; border-bottom: 1px solid #e2e8f0;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                    <span style="font-weight: 600; font-size: 14px;">To: <span id="email-mock-to" style="font-weight: 400; color: #64748b;">manager@company.com</span></span>
+                                    <span style="font-size: 13px; color: #94a3b8;">Just Now</span>
+                                </div>
+                                <div style="font-size: 18px; font-weight: 700; color: #0f172a;">Subject: <span id="email-mock-subject">🚀 New LinkedIn Posts Ready for Approval!</span></div>
+                            </div>
+                            <div class="email-body" style="padding: 20px; font-size: 15px; line-height: 1.6; white-space: pre-wrap;" id="email-mock-body">
+                                <!-- Email text goes here -->
+                            </div>
+                            <div class="email-footer" style="padding: 15px 20px; border-top: 1px solid #e2e8f0; background: #f8fafc;">
+                                <button type="button" id="send-real-email-btn" style="background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;">
+                                    <span id="send-email-text">Send this Email for Real 🚀</span>
+                                    <div class="loader" id="send-email-loader" style="width: 15px; height: 15px; border-width: 2px;"></div>
+                                </button>
+                                <div id="send-email-message" style="margin-top: 10px; font-size: 13px; text-align: center;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
