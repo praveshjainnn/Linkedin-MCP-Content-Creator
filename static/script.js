@@ -61,12 +61,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify(payload)
             });
             
+            let data;
+            const resText = await response.text();
+            
             if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.detail || 'Failed to generate content');
+                try {
+                    const errData = JSON.parse(resText);
+                    throw new Error(errData.detail || 'Failed to generate content');
+                } catch (e) {
+                    throw new Error(resText || 'Unknown Server Error (Empty Response)');
+                }
             }
             
-            const data = await response.json();
+            try {
+                data = JSON.parse(resText);
+            } catch (e) {
+                throw new Error('Invalid JSON received from server.');
+            }
             
             // Display Data
             emptyState.style.display = 'none';
@@ -150,12 +161,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ user_feed: feedUrl, target_email: targetEmail })
             });
             
+            let errData;
+            const resText = await response.text();
+            
             if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.detail || 'Failed to trigger pipeline');
+                try {
+                    errData = JSON.parse(resText);
+                    throw new Error(errData.detail || 'Failed to trigger pipeline');
+                } catch (e) {
+                    throw new Error(resText || 'Unknown Server Error (Empty Response from Backend)');
+                }
             }
             
-            const data = await response.json();
+            let data;
+            try {
+                data = JSON.parse(resText);
+            } catch (e) {
+                throw new Error('Invalid JSON received from server.');
+            }
             
             // Display Data in the Message Box
             triggerMessage.textContent = "Pipeline execution complete! Check the Email Draft tab.";
@@ -222,12 +245,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 })
             });
             
+            let errData;
+            const resText = await response.text();
+            
             if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.detail || 'Failed to send email');
+                try {
+                    errData = JSON.parse(resText);
+                    throw new Error(errData.detail || 'Failed to send email');
+                } catch (e) {
+                    throw new Error(resText || 'Unknown SMTP Server Error. Check server console.');
+                }
             }
             
-            const data = await response.json();
+            let data;
+            try {
+                data = JSON.parse(resText);
+            } catch (e) {
+                throw new Error('Invalid JSON received from backend.');
+            }
             
             // Show Success
             sendEmailMessage.textContent = data.message;
