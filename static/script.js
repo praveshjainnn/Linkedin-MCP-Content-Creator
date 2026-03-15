@@ -283,3 +283,183 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 });
+
+// --- Particle Background System ---
+class ParticleSystem {
+    constructor() {
+        this.canvas = document.getElementById('particleCanvas');
+        if (!this.canvas) return; // safety check
+        this.ctx = this.canvas.getContext('2d');
+        
+        this.particles = [];
+        this.numParticles = window.innerWidth < 768 ? 600 : 1200; // adaptive count based on screen size
+        
+        // Colors matching a dark AI-themed UI: blue, purple, light violet
+        this.colors = ['#4c1d95', '#7b2cbf', '#9d4edd', '#c77dff', '#e0aaff', '#a9def9'];
+        
+        // Vanishing point (origin)
+        this.centerX = window.innerWidth / 2;
+        this.centerY = window.innerHeight / 2;
+        
+        // Mouse/target point for focal center
+        this.mouse = {
+            x: this.centerX,
+            y: this.centerY,
+            targetX: this.centerX,
+            targetY: this.centerY,
+            moving: false,
+            speed: 0
+        };
+        
+        this.resize();
+        this.initParticles();
+        this.bindEvents();
+        this.animate();
+    }
+    
+    resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+        this.centerX = window.innerWidth / 2;
+        this.centerY = window.innerHeight / 2;
+        
+        // Update adaptive constraints on resize
+        let newCount = window.innerWidth < 768 ? 600 : 1200;
+        if (newCount !== this.numParticles) {
+            this.numParticles = newCount;
+            this.initParticles();
+        }
+    }
+    
+    bindEvents() {
+        window.addEventListener('resize', () => {
+            // Debounce resize
+            clearTimeout(this.resizeTimeout);
+            this.resizeTimeout = setTimeout(() => this.resize(), 200);
+        });
+        
+        window.addEventListener('mousemove', (e) => {
+            this.mouse.targetX = e.clientX;
+            this.mouse.targetY = e.clientY;
+            this.mouse.moving = true;
+            clearTimeout(this.mouseTimeout);
+            this.mouseTimeout = setTimeout(() => {
+                this.mouse.moving = false;
+            }, 100);
+        });
+        
+        window.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 0) {
+                this.mouse.targetX = e.touches[0].clientX;
+                this.mouse.targetY = e.touches[0].clientY;
+            }
+        }, { passive: true });
+    }
+    
+    initParticles() {
+        this.particles = [];
+        for (let i = 0; i < this.numParticles; i++) {
+            this.particles.push(this.createParticle(true));
+        }
+    }
+    
+    createParticle(randomizeZ = false) {
+        // Starfield spans -width to width, -height to height
+        let w = window.innerWidth * 2.5;
+        let h = window.innerHeight * 2.5;
+        return {
+            x: (Math.random() - 0.5) * w,
+            y: (Math.random() - 0.5) * h,
+            // Start depth further back or random
+            z: randomizeZ ? Math.random() * 2000 : 2000,
+            baseSpeed: Math.random() * 1.5 + 0.5,
+            color: this.colors[Math.floor(Math.random() * this.colors.length)],
+            radius: Math.random() * 1.5 + 0.5,
+            angle: Math.random() * Math.PI * 2 // For ambient drift
+        };
+    }
+    
+    animate() {
+        // Smooth mouse easing
+        let dx = this.mouse.targetX - this.mouse.x;
+        let dy = this.mouse.targetY - this.mouse.y;
+        this.mouse.x += dx * 0.05; // easing
+        this.mouse.y += dy * 0.05;
+        
+        let mouseSpeed = Math.sqrt(dx*dx + dy*dy);
+        
+        // Clear canvas
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        for (let i = 0; i < this.particles.length; i++) {
+            let p = this.particles[i];
+            
+            // Move particle towards camera (decrease z)
+            // Dynamic speed increase if mouse is moving faster (depth effect)
+            let speedMultiplier = this.mouse.moving ? (1 + Math.min(mouseSpeed * 0.03, 2.5)) : 1;
+            p.z -= p.baseSpeed * speedMultiplier;
+            
+            // Slow ambient orbit/drift
+            p.angle += 0.001;
+            p.x += Math.cos(p.angle) * 0.5;
+            p.y += Math.sin(p.angle) * 0.5;
+            
+            // Reset particle if it goes past the camera or too far away
+            if (p.z <= 10) {
+                Object.assign(p, this.createParticle(false));
+                continue;
+            }
+            
+            // Project 3D coordinate to 2D screen
+            // The magic happens here: shifting the focal point to the mouse
+            let fov = 350; // field of view factor
+            let scale = fov / p.z;
+            
+            // The center of projection is tied to the smoothed mouse position
+            let screenX = this.mouse.x + p.x * scale;
+            let screenY = this.mouse.y + p.y * scale;
+            
+            // Size based on depth
+            let size = p.radius * scale;
+            if (size < 0.1) continue;
+            
+            // Opacity logic:
+            // Fade in from distance, fade out when getting very close
+            let opacity = 1;
+            if (p.z > 1500) {
+                opacity = 1 - ((p.z - 1500) / 500); // fade in 2000 -> 1500
+            } else if (p.z < 300) {
+                opacity = p.z / 300; // fade out 300 -> 0
+            }
+            
+            // Slight repulsion and glow near the cursor
+            let distToMouseX = screenX - this.mouse.targetX;
+            let distToMouseY = screenY - this.mouse.targetY;
+            let distToMouse = Math.sqrt(distToMouseX*distToMouseX + distToMouseY*distToMouseY);
+            
+            if (distToMouse < 150) {
+                let repelForce = (150 - distToMouse) / 150;
+                screenX += (distToMouseX / distToMouse) * repelForce * 15 * scale;
+                screenY += (distToMouseY / distToMouse) * repelForce * 15 * scale;
+                // Add a bright spot glow
+                opacity = Math.min(1, opacity + repelForce * 0.6);
+                size += repelForce * 1.5; // swell up when near mouse
+            }
+            
+            // Draw the particle
+            this.ctx.beginPath();
+            this.ctx.arc(screenX, screenY, size, 0, Math.PI * 2);
+            this.ctx.fillStyle = p.color;
+            this.ctx.globalAlpha = Math.max(0, opacity);
+            this.ctx.fill();
+        }
+        
+        // Loop using requestAnimationFrame for GPU-friendly smooth rendering
+        requestAnimationFrame(() => this.animate());
+    }
+}
+
+// Instantiate the particle system once the DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    new ParticleSystem();
+});
