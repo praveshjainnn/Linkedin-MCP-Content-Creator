@@ -4,8 +4,10 @@ import sys
 import json
 import re
 import asyncio
+import csv
+import tempfile
 from contextlib import AsyncExitStack
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Tuple
 
 import gradio as gr  # type: ignore
 from mcp import ClientSession, StdioServerParameters  # type: ignore
@@ -262,14 +264,17 @@ def run_linkedin_agent(
     sample_posts: str,
     pillar_text: str,
     n_posts: int,
-) -> str:
+    use_trending_news: bool = False,
+    feed_url: str = "https://techcrunch.com/feed/",
+) -> Tuple[str, Optional[str]]:
     """
     Orchestrate calls to MCP tools to produce a LinkedIn content pack.
+    Returns (markdown_text, csv_file_path).
     """
     if not brand_desc.strip():
-        return "⚠️ Please provide a brand / creator description."
+        return "⚠️ Please provide a brand / creator description.", None
     if not pillar_text.strip():
-        return "⚠️ Please paste your pillar content."
+        return "⚠️ Please paste your pillar content.", None
 
     # 1) Brand voice
     brand_profile_raw = mcp_client.call_tool(
@@ -280,7 +285,7 @@ def run_linkedin_agent(
 
     # If tool reported an error, surface it clearly
     if isinstance(brand_profile, dict) and "error" in brand_profile:
-        return f"❌ Error from analyze_brand_voice tool:\n\n{brand_profile['error']}"
+        return f"❌ Error from analyze_brand_voice tool:\n\n{brand_profile['error']}", None
 
     # 2) Pillar summary
     pillar_summary_raw = mcp_client.call_tool(
@@ -290,7 +295,16 @@ def run_linkedin_agent(
     pillar_summary = _normalise_pillar_summary(pillar_summary_raw)
 
     if isinstance(pillar_summary, dict) and "error" in pillar_summary:
-        return f"❌ Error from summarise_pillar tool:\n\n{pillar_summary['error']}"
+        return f"❌ Error from summarise_pillar tool:\n\n{pillar_summary['error']}", None
+
+    # 2.5) Trending News
+    trending_context = ""
+    if use_trending_news:
+        news_raw = mcp_client.call_tool("fetch_trending_news", {"feed_url": feed_url})
+        if isinstance(news_raw, dict) and "trending_news" in news_raw:
+            trending_context = news_raw["trending_news"]
+        elif isinstance(news_raw, str):
+            trending_context = news_raw
 
     # 3) LinkedIn posts
     posts_raw = mcp_client.call_tool(
@@ -298,6 +312,7 @@ def run_linkedin_agent(
         {
             "pillar_text": pillar_text,
             "brand_profile": brand_profile,
+            "trending_context": trending_context,
             "n_posts": int(n_posts),
         },
     )
@@ -319,17 +334,38 @@ def run_linkedin_agent(
 
     sections.append("\n\n## LinkedIn Posts\n")
 
+    csv_path = None
     if not posts:
         sections.append("_No posts generated – check for earlier errors or try again._\n")
     else:
-        for i, post in enumerate(posts, start=1):
-            sections.append(f"---\n\n### Post #{i}: {post.get('title', 'Untitled')}\n")
-            sections.append(f"**Format:** {post.get('format_hint', 'general')}\n\n")
-            sections.append(f"**Hook:** {post.get('hook', '')}\n\n")
-            sections.append(post.get("body", ""))
-            sections.append("\n\n**CTA:** " + post.get("CTA", "") + "\n")
+        # Create CSV for Content Calendar Export
+        tmp_dir = tempfile.gettempdir()
+        csv_path = os.path.join(tmp_dir, "linkedin_content_calendar.csv")
+        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["Schedule Day", "Post Format", "Title", "Hook", "Body", "CTA"])
+            
+            for i, post in enumerate(posts, start=1):
+                day = days[(i - 1) % len(days)]
+                
+                writer.writerow([
+                    day,
+                    post.get("format_hint", "general"),
+                    post.get("title", ""),
+                    post.get("hook", ""),
+                    post.get("body", ""),
+                    post.get("CTA", "")
+                ])
+                
+                sections.append(f"---\n\n### Post #{i}: {post.get('title', 'Untitled')} ({day} 📅)\n")
+                sections.append(f"**Format:** {post.get('format_hint', 'general')}\n\n")
+                sections.append(f"**Hook:** {post.get('hook', '')}\n\n")
+                sections.append(post.get("body", ""))
+                sections.append("\n\n**CTA:** " + post.get("CTA", "") + "\n")
 
-    return "\n".join(sections)
+    return "\n".join(sections), csv_path
 
 
 # ---------------- Gradio UI ----------------
@@ -369,12 +405,30 @@ All generation is done via MCP tools backed by OpenAI.
                 lines=12,
                 placeholder="Paste a long-form article, transcript, or detailed post you want to repurpose.",
             )
+            use_trending_news = gr.Checkbox(
+                label="Tie posts into today's Trending News (via RSS)",
+                value=False,
+            )
+            feed_url = gr.Textbox(
+                label="Custom RSS Feed URL",
+                lines=1,
+                value="https://techcrunch.com/feed/",
+                visible=False,
+            )
+
+            use_trending_news.change(
+                fn=lambda x: gr.update(visible=x),
+                inputs=use_trending_news,
+                outputs=feed_url,
+            )
+
             n_posts = gr.Slider(
                 1, 10, value=3, step=1, label="Number of LinkedIn posts to generate"
             )
             run_btn = gr.Button("Generate LinkedIn Content Pack 🚀")
 
         with gr.Column(scale=1):
+            download_btn = gr.DownloadButton(label="📥 Download CSV Calendar", visible=False)
             output_md = gr.Markdown(label="Generated LinkedIn Content Pack")
 
     # Connect to MCP server on app load
@@ -388,13 +442,16 @@ All generation is done via MCP tools backed by OpenAI.
     demo.load(on_startup, inputs=None, outputs=status)
 
     # Button click -> run agent
-    def ui_wrapper(brand_desc, sample_posts, pillar_text, n_posts):
-        return run_linkedin_agent(brand_desc, sample_posts, pillar_text, n_posts)
+    def ui_wrapper(brand_desc, sample_posts, pillar_text, use_trending_news, feed_url, n_posts):
+        md_text, csv_path = run_linkedin_agent(brand_desc, sample_posts, pillar_text, n_posts, use_trending_news, feed_url)
+        if csv_path:
+            return md_text, gr.update(value=csv_path, visible=True)
+        return md_text, gr.update(value=None, visible=False)
 
     run_btn.click(
         ui_wrapper,
-        inputs=[brand_desc, sample_posts, pillar_text, n_posts],
-        outputs=output_md,
+        inputs=[brand_desc, sample_posts, pillar_text, use_trending_news, feed_url, n_posts],
+        outputs=[output_md, download_btn],
     )
 
 if __name__ == "__main__":

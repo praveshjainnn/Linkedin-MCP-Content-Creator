@@ -312,6 +312,174 @@ button:disabled {
     font-size: 1.1rem;
 }
 
+/* Toggle Switch */
+.toggle-group {
+    display: flex;
+    align-items: center;
+}
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    color: #e9ecef;
+    font-weight: 500;
+    user-select: none;
+}
+.toggle-label input[type="checkbox"] {
+    display: none;
+}
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 100px;
+    border: 1px solid rgba(255,255,255,0.2);
+    transition: background 0.3s;
+    flex-shrink: 0;
+}
+.toggle-switch::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.3s;
+}
+.toggle-label input:checked + .toggle-switch {
+    background: var(--primary-color);
+    border-color: var(--primary-hover);
+}
+.toggle-label input:checked + .toggle-switch::after {
+    transform: translateX(20px);
+}
+
+/* RSS URL input */
+input[type="url"],
+input[type="email"] {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 12px 15px;
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+}
+input[type="url"]:focus,
+input[type="email"]:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 15px rgba(123, 44, 191, 0.3);
+}
+
+/* Day badge on post cards */
+.post-day-badge {
+    display: inline-block;
+    background: rgba(5, 150, 105, 0.2);
+    color: #6ee7b7;
+    border: 1px solid rgba(5, 150, 105, 0.4);
+    border-radius: 100px;
+    padding: 3px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-left: 8px;
+    letter-spacing: 0.03em;
+}
+
+/* === Image Prompt Cards === */
+.prompt-card {
+    background: rgba(131, 24, 67, 0.08);
+    border: 1px solid rgba(190, 24, 93, 0.25);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 18px;
+    animation: fadeUp 0.5s ease backwards;
+    transition: border-color 0.3s;
+}
+.prompt-card:hover {
+    border-color: rgba(190, 24, 93, 0.5);
+}
+.prompt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+.prompt-post-label {
+    font-weight: 600;
+    color: #f9a8d4;
+    font-size: 0.95rem;
+}
+.prompt-style-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 100px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.prompt-text {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9rem;
+    line-height: 1.65;
+    color: #e2e8f0;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    white-space: pre-wrap;
+    border-left: 3px solid rgba(190, 24, 93, 0.5);
+}
+.copy-prompt-btn {
+    width: auto;
+    padding: 8px 18px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: rgba(190, 24, 93, 0.15);
+    border: 1px solid rgba(190, 24, 93, 0.4);
+    color: #f9a8d4;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.copy-prompt-btn:hover {
+    background: rgba(190, 24, 93, 0.3);
+    transform: translateY(-1px);
+    box-shadow: none;
+}
+
+/* Variation rows inside a prompt card */
+.variation-row {
+    margin-bottom: 4px;
+}
+.variation-style-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+.variation-divider {
+    border-top: 1px dashed rgba(255, 255, 255, 0.08);
+    margin: 14px 0;
+}
+.prompt-count-badge {
+    background: rgba(190, 24, 93, 0.15);
+    color: #f9a8d4;
+    border: 1px solid rgba(190, 24, 93, 0.3);
+    border-radius: 100px;
+    padding: 3px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
 /* Particle Animation Canvas */
 #particleCanvas {
     position: fixed;

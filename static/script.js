@@ -10,6 +10,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const postsContainer = document.getElementById('posts-container');
     const metaBrand = document.getElementById('meta-brand');
     const metaSummary = document.getElementById('meta-summary');
+    const csvBar = document.getElementById('csv-bar');
+    
+    // Show/hide custom RSS URL when toggle is flipped
+    const trendingNewsToggle = document.getElementById('use_trending_news');
+    const feedUrlGroup = document.getElementById('feed-url-group');
+    trendingNewsToggle.addEventListener('change', () => {
+        feedUrlGroup.style.display = trendingNewsToggle.checked ? 'block' : 'none';
+    });
     
     // Tab switching logic for separate tab groups
     const tabs = document.querySelectorAll('.tab');
@@ -45,7 +53,9 @@ document.addEventListener('DOMContentLoaded', () => {
             brand_desc: document.getElementById('brand_desc').value,
             sample_posts: document.getElementById('sample_posts').value,
             pillar_text: document.getElementById('pillar_text').value,
-            n_posts: parseInt(document.getElementById('n_posts').value, 10)
+            n_posts: parseInt(document.getElementById('n_posts').value, 10),
+            use_trending_news: document.getElementById('use_trending_news').checked,
+            feed_url: document.getElementById('feed_url').value || 'https://techcrunch.com/feed/'
         };
         
         // UI Loading state
@@ -89,10 +99,12 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Render Posts
             postsContainer.innerHTML = '';
+            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
             
             if (data.posts && data.posts.length > 0) {
                 data.posts.forEach((post, index) => {
                     const delay = index * 0.1; // Stagger animation
+                    const day = days[index % days.length];
                     
                     const el = document.createElement('div');
                     el.className = 'post-card';
@@ -108,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     el.innerHTML = `
                         <div class="post-header">
-                            <div class="post-title">#${index + 1}: ${post.title || 'Post'}</div>
+                            <div class="post-title">#${index + 1}: ${post.title || 'Post'} <span class="post-day-badge">${day}</span></div>
                             <div class="post-format">${post.format_hint || 'General'}</div>
                         </div>
                         <div class="post-content">${bodyContent.replace(/\n/g, '<br>')}</div>
@@ -116,18 +128,187 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     postsContainer.appendChild(el);
                 });
+
+                csvBar.style.display = 'block';
+                window._generatedPosts = data.posts;
             } else {
                 postsContainer.innerHTML = '<p>No posts returned.</p>';
+                csvBar.style.display = 'none';
             }
             
         } catch (error) {
             errorMsg.textContent = error.message;
             errorMsg.style.display = 'block';
+            csvBar.style.display = 'none';
         } finally {
             // Restore UI
             btnText.style.display = 'block';
             loader.style.display = 'none';
             submitBtn.disabled = false;
+        }
+    });
+
+    // CSV Download
+    const downloadCsvBtn = document.getElementById('download-csv-btn');
+    downloadCsvBtn.addEventListener('click', async () => {
+        const posts = window._generatedPosts;
+        if (!posts || posts.length === 0) return;
+
+        const origText = downloadCsvBtn.textContent;
+        downloadCsvBtn.textContent = 'Preparing...';
+        downloadCsvBtn.disabled = true;
+
+        try {
+            const response = await fetch('/api/export-csv', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ posts })
+            });
+
+            if (!response.ok) throw new Error('CSV export failed');
+
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'linkedin_content_calendar.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            downloadCsvBtn.textContent = 'Downloaded!';
+            setTimeout(() => {
+                downloadCsvBtn.textContent = origText;
+                downloadCsvBtn.disabled = false;
+            }, 3000);
+        } catch (err) {
+            downloadCsvBtn.textContent = 'Export Failed';
+            downloadCsvBtn.disabled = false;
+        }
+    });
+
+    // === Image Prompts Generator ===
+    const genImagesBtn = document.getElementById('gen-images-btn');
+    const genImagesText = document.getElementById('gen-images-text');
+    const genImagesLoader = document.getElementById('gen-images-loader');
+    const genImagesHint = document.getElementById('gen-images-hint');
+    const imagePromptsContainer = document.getElementById('image-prompts-container');
+
+    genImagesBtn.addEventListener('click', async () => {
+        const posts = window._generatedPosts;
+        if (!posts || posts.length === 0) {
+            genImagesHint.textContent = 'Generate posts first, then come here for image prompts.';
+            genImagesHint.style.color = '#ff4d4d';
+            return;
+        }
+
+        // Loading state
+        genImagesText.style.display = 'none';
+        genImagesLoader.style.display = 'block';
+        genImagesBtn.disabled = true;
+        genImagesHint.textContent = 'Crafting visual prompts with AI... this takes ~20 seconds.';
+        genImagesHint.style.color = '#a1a1aa';
+        imagePromptsContainer.innerHTML = '';
+
+        try {
+            const response = await fetch('/api/image-prompts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ posts })
+            });
+
+            const resText = await response.text();
+            if (!response.ok) {
+                const err = JSON.parse(resText);
+                throw new Error(err.detail || 'Failed to generate image prompts');
+            }
+
+            const data = JSON.parse(resText);
+            const prompts = data.image_prompts || [];
+
+            if (prompts.length === 0) {
+                imagePromptsContainer.innerHTML = '<p style="color:#a1a1aa">No prompts returned. Try again.</p>';
+                return;
+            }
+
+            const totalVariations = prompts.reduce((sum, p) => sum + (p.variations?.length || 1), 0);
+            genImagesHint.textContent = `${totalVariations} image prompts across ${prompts.length} post${prompts.length > 1 ? 's' : ''}! Copy and paste into Midjourney or DALL-E.`;
+            genImagesHint.style.color = '#6ee7b7';
+
+            // Style config
+            const styleConfig = {
+                '3d render':        { color: '#7c3aed', emoji: '' },
+                '3d':               { color: '#7c3aed', emoji: '' },
+                'cinematic':        { color: '#b45309', emoji: '' },
+                'cinematic photo':  { color: '#b45309', emoji: '' },
+                'flat illustration':{ color: '#0369a1', emoji: '' },
+                'illustration':     { color: '#0369a1', emoji: '' },
+                'minimal':          { color: '#374151', emoji: '' },
+            };
+
+            const getStyle = (s) => {
+                const key = Object.keys(styleConfig).find(k => (s||'').toLowerCase().includes(k));
+                return key ? styleConfig[key] : { color: '#6b7280', emoji: '' };
+            };
+
+            prompts.forEach((item, idx) => {
+                const card = document.createElement('div');
+                card.className = 'prompt-card';
+                card.style.animationDelay = `${idx * 0.12}s`;
+                const postTitle = item.title || `Post #${item.post_number || idx + 1}`;
+
+                // Build variation rows
+                const variations = item.variations || (item.prompt
+                    ? [{ style: item.style || 'General', prompt: item.prompt }]
+                    : []);
+
+                const variationHTML = variations.map((v, vi) => {
+                    const cfg = getStyle(v.style);
+                    const escapedPrompt = (v.prompt || '').replace(/"/g, '&quot;');
+                    return `
+                        <div class="variation-row">
+                            <div class="variation-style-label" style="color:${cfg.color};">
+                                ${v.style}
+                            </div>
+                            <div class="prompt-text">${v.prompt || ''}</div>
+                            <button class="copy-prompt-btn" data-prompt="${escapedPrompt}">
+                                Copy Prompt
+                            </button>
+                        </div>
+                    `;
+                }).join('<div class="variation-divider"></div>');
+
+                card.innerHTML = `
+                    <div class="prompt-header">
+                        <div class="prompt-post-label">Post #${item.post_number || idx + 1}: ${postTitle}</div>
+                        <span class="prompt-count-badge">${variations.length} styles</span>
+                    </div>
+                    ${variationHTML}
+                `;
+                imagePromptsContainer.appendChild(card);
+            });
+
+            // Wire up ALL copy buttons
+            imagePromptsContainer.querySelectorAll('.copy-prompt-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const text = btn.getAttribute('data-prompt');
+                    try {
+                        await navigator.clipboard.writeText(text);
+                        btn.textContent = 'Copied!';
+                        setTimeout(() => { btn.textContent = 'Copy Prompt'; }, 2000);
+                    } catch {
+                        btn.textContent = 'Failed';
+                    }
+                });
+            });
+
+        } catch (error) {
+            genImagesHint.textContent = 'Error: ' + error.message;
+            genImagesHint.style.color = '#ff4d4d';
+        } finally {
+            genImagesText.style.display = 'block';
+            genImagesLoader.style.display = 'none';
+            genImagesBtn.disabled = false;
         }
     });
 

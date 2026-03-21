@@ -23,8 +23,8 @@
         <div class="grid">
             <div class="card form-panel">
                 <div class="tabs" id="mode-tabs" style="justify-content: center; margin-bottom: 25px;">
-                    <div class="tab mode-tab active" data-target="mode-manual">Manual Studio 📝</div>
-                    <div class="tab mode-tab" data-target="mode-factory">Automated Factory 🏭</div>
+                    <div class="tab mode-tab active" data-target="mode-manual">Manual Studio</div>
+                    <div class="tab mode-tab" data-target="mode-factory">Automated Factory</div>
                 </div>
 
                 <!-- Mode 1: Manual Generation -->
@@ -50,8 +50,21 @@
                         <input type="number" id="n_posts" min="1" max="10" value="3" required>
                     </div>
 
+                    <div class="form-group toggle-group">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="use_trending_news">
+                            <span class="toggle-switch"></span>
+                            <span>Inject Today's Trending News (via RSS)</span>
+                        </label>
+                    </div>
+
+                    <div class="form-group" id="feed-url-group" style="display:none;">
+                        <label for="feed_url">Custom RSS Feed URL</label>
+                        <input type="url" id="feed_url" value="https://techcrunch.com/feed/" placeholder="https://yoursource.com/feed/">
+                    </div>
+
                     <button type="submit" id="submit-btn" class="glass-btn">
-                        <span id="btn-text">Generate Content Pack 🚀</span>
+                        <span id="btn-text">Generate Content Pack</span>
                         <div class="loader" id="loader"></div>
                     </button>
                     <div id="error-message" style="color: #ff4d4d; margin-top: 15px; display: none;"></div>
@@ -75,7 +88,7 @@
                     </div>
                     
                     <button type="button" id="trigger-btn" class="glass-btn" style="background: linear-gradient(135deg, #4c1d95, #6d28d9); margin-top: 10px;">
-                        <span id="trigger-btn-text">Execute Automated Pipeline ⚡</span>
+                        <span id="trigger-btn-text">Execute Automated Pipeline</span>
                         <div class="loader" id="trigger-loader"></div>
                     </button>
                     
@@ -101,11 +114,17 @@
                     <div class="tabs" id="main-tabs">
                         <div class="tab active" data-target="tab-posts">Posts</div>
                         <div class="tab" data-target="tab-meta">Analysis Meta</div>
-                        <div class="tab" data-target="tab-email" id="tab-email-btn" style="display: none; background: rgba(139, 92, 246, 0.2); border: 1px solid rgba(139, 92, 246, 0.4);">Email Draft 📧</div>
+                        <div class="tab" data-target="tab-images" id="tab-images-btn">Image Prompts</div>
+                        <div class="tab" data-target="tab-email" id="tab-email-btn" style="display: none; background: rgba(139, 92, 246, 0.2); border: 1px solid rgba(139, 92, 246, 0.4);">Email Draft</div>
                     </div>
 
                     <div id="tab-posts" class="tab-content active">
                         <div id="posts-container"></div>
+                        <div id="csv-bar" style="display:none; margin-top: 18px; text-align: center;">
+                            <button type="button" id="download-csv-btn" class="glass-btn" style="background: linear-gradient(135deg, #065f46, #059669); font-size: 0.9rem; padding: 10px 22px;">
+                                Download Content Calendar (.txt)
+                            </button>
+                        </div>
                     </div>
 
                     <div id="tab-meta" class="tab-content">
@@ -116,6 +135,17 @@
                         <div class="meta-box" id="meta-summary"></div>
                     </div>
 
+                    <div id="tab-images" class="tab-content">
+                        <div style="text-align:center; margin-bottom: 20px;">
+                            <button type="button" id="gen-images-btn" class="glass-btn" style="background: linear-gradient(135deg, #831843, #be185d); padding: 12px 28px; font-size: 0.95rem;">
+                                <span id="gen-images-text">Generate Image Prompts</span>
+                                <div class="loader" id="gen-images-loader"></div>
+                            </button>
+                            <p id="gen-images-hint" style="margin-top:10px; color:#a1a1aa; font-size:0.85rem;">Click to generate Midjourney & DALL-E prompts for each post above.</p>
+                        </div>
+                        <div id="image-prompts-container"></div>
+                    </div>
+
                     <div id="tab-email" class="tab-content">
                         <div class="email-container" style="background: #ffffff; color: #1e293b; border-radius: 8px; overflow: hidden; font-family: 'Helvetica Neue', Arial, sans-serif;">
                             <div class="email-header" style="background: #f8fafc; padding: 15px 20px; border-bottom: 1px solid #e2e8f0;">
@@ -123,14 +153,14 @@
                                     <span style="font-weight: 600; font-size: 14px;">To: <span id="email-mock-to" style="font-weight: 400; color: #64748b;">manager@company.com</span></span>
                                     <span style="font-size: 13px; color: #94a3b8;">Just Now</span>
                                 </div>
-                                <div style="font-size: 18px; font-weight: 700; color: #0f172a;">Subject: <span id="email-mock-subject">🚀 New LinkedIn Posts Ready for Approval!</span></div>
+                                <div style="font-size: 18px; font-weight: 700; color: #0f172a;">Subject: <span id="email-mock-subject">New LinkedIn Posts Ready for Approval!</span></div>
                             </div>
                             <div class="email-body" style="padding: 20px; font-size: 15px; line-height: 1.6; white-space: pre-wrap;" id="email-mock-body">
                                 <!-- Email text goes here -->
                             </div>
                             <div class="email-footer" style="padding: 15px 20px; border-top: 1px solid #e2e8f0; background: #f8fafc;">
                                 <button type="button" id="send-real-email-btn" style="background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;">
-                                    <span id="send-email-text">Send this Email for Real 🚀</span>
+                                    <span id="send-email-text">Send this Email for Real</span>
                                     <div class="loader" id="send-email-loader" style="width: 15px; height: 15px; border-width: 2px;"></div>
                                 </button>
                                 <div id="send-email-message" style="margin-top: 10px; font-size: 13px; text-align: center;"></div>

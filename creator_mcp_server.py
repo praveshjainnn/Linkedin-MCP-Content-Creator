@@ -36,9 +36,8 @@ def _safe_chat_json(prompt: str) -> Dict[str, Any]:
 import xml.etree.ElementTree as ET
 
 @mcp.tool()
-async def fetch_trending_news(source: str = "techcrunch") -> Dict[str, Any]:
+async def fetch_trending_news(feed_url: str = "https://techcrunch.com/feed/") -> Dict[str, Any]:
     """Fetches real-time trending news headlines to inject into posts."""
-    feed_url = "https://techcrunch.com/feed/"
     try:
         req = urllib.request.Request(feed_url, headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req) as response:
@@ -61,23 +60,56 @@ async def fetch_trending_news(source: str = "techcrunch") -> Dict[str, Any]:
         return {"status": "error", "message": str(e)}
 
 @mcp.tool()
+async def fast_generate(
+    brand_desc: str,
+    pillar_text: str,
+    n_posts: int = 3,
+    trending_context: str = "",
+    sample_posts: str = "",
+) -> Dict[str, Any]:
+    """Single-call tool: analyses brand, summarises pillar, and writes posts in ONE LLM pass."""
+    news_section = f"\nToday's Trending News (weave at least one headline into a post hook):\n{trending_context}" if trending_context else ""
+    samples_section = f"\nSample posts for style reference:\n{sample_posts}" if sample_posts else ""
+
+    prompt = f"""You are an expert LinkedIn ghostwriter. Complete all three tasks below in a single JSON response.
+
+BRAND: {brand_desc}{samples_section}
+CONTENT: {pillar_text}{news_section}
+
+Tasks:
+1. Derive a brief brand profile.
+2. Extract 3-5 key points from the content.
+3. Write {n_posts} distinct LinkedIn posts using the brand voice and key points.
+
+Return ONLY this JSON (no extra text):
+{{
+  "brand_profile": {{
+    "audience": "...",
+    "tone": "...",
+    "style_notes": "...",
+    "do": "...",
+    "dont": "..."
+  }},
+  "pillar_summary": {{
+    "summary": "...",
+    "key_points": ["...", "..."]
+  }},
+  "posts": [
+    {{
+      "title": "...",
+      "hook": "...",
+      "body": "...",
+      "CTA": "...",
+      "format_hint": "story|how-to|myth-busting|lessons-learned"
+    }}
+  ]
+}}"""
+    return _safe_chat_json(prompt)
+
+@mcp.tool()
 async def analyze_brand_voice(brand_desc: str, samples: str = "") -> Dict[str, Any]:
-    prompt = f"""
-You are a content strategist who specializes in LinkedIn.
-
-Brand description:
-{brand_desc}
-
-Sample posts (if any):
-{samples}
-
-Analyze this and return a JSON object with:
-- audience (string)
-- tone (string)
-- style_notes (string)
-- do (string)
-- dont (string)
-"""
+    prompt = f"""LinkedIn content strategist. Brand: {brand_desc}. Samples: {samples}.
+Return JSON: audience, tone, style_notes, do, dont."""
     return _safe_chat_json(prompt)
 
 @mcp.tool()
@@ -85,22 +117,9 @@ async def summarise_pillar(
     pillar_text: str,
     brand_profile: Dict[str, Any],
 ) -> Dict[str, Any]:
-    prompt = f"""
-You are helping a creator repurpose content for LinkedIn.
-
-Brand profile (JSON):
-{json.dumps(brand_profile, indent=2)}
-
-Pillar content:
-{pillar_text}
-
-1) Write a 2–3 sentence summary in the brand's voice.
-2) Extract 5–7 bullet key points that LinkedIn posts could be built around.
-
-Return JSON with exactly these keys:
-- summary (string)
-- key_points (list of strings)
-"""
+    prompt = f"""Repurpose for LinkedIn. Brand: {json.dumps(brand_profile)}.
+Content: {pillar_text}
+Return JSON: summary (2-3 sentences), key_points (list of 5 strings)."""
     return _safe_chat_json(prompt)
 
 
@@ -188,6 +207,59 @@ Return a JSON object with a single key "posts" which contains a list of objects.
         "CTA": "",
         "format_hint": "unknown",
     }]
+
+@mcp.tool()
+async def generate_image_prompts(
+    posts: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """For each LinkedIn post, generate 3 distinct Midjourney/DALL-E prompt variations."""
+    posts_text = "\n\n".join(
+        f"Post #{i+1}\nTitle: {p.get('title', 'Untitled')}\nHook: {p.get('hook', '')}\nTheme: {p.get('body', '')[:300]}"
+        for i, p in enumerate(posts)
+    )
+    prompt = f"""You are a world-class creative director specializing in LinkedIn social media visuals.
+
+For EACH LinkedIn post below, produce EXACTLY 3 image prompt variations.
+Each variation must use a DIFFERENT visual style and must directly reflect the POST'S SPECIFIC MESSAGE and theme — not generic business imagery.
+
+The 3 styles must be:
+1. "3D Render" — surreal, geometric, dramatic lighting, depth of field
+2. "Cinematic Photo" — photo-realistic, moody, story-driven, specific scene
+3. "Flat Illustration" — clean vector style, bold palette, modern editorial
+
+Rules for every prompt:
+- 2-3 sentences, rich and specific
+- Mention exact colors, mood, lighting, and composition
+- Tie the SUBJECT directly to the post's core idea
+- Ready to paste into Midjourney (v6) or DALL-E 3
+
+Posts:
+{posts_text}
+
+Return ONLY this exact JSON structure, no extra text:
+{{
+  "image_prompts": [
+    {{
+      "post_number": 1,
+      "title": "exact post title here",
+      "variations": [
+        {{
+          "style": "3D Render",
+          "prompt": "..."
+        }},
+        {{
+          "style": "Cinematic Photo",
+          "prompt": "..."
+        }},
+        {{
+          "style": "Flat Illustration",
+          "prompt": "..."
+        }}
+      ]
+    }}
+  ]
+}}"""
+    return _safe_chat_json(prompt)
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")

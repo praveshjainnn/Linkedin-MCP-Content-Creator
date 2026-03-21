@@ -2,6 +2,8 @@ import os
 import sys
 import json
 import re
+import csv
+import io
 import urllib.request
 import xml.etree.ElementTree as ET
 import smtplib
@@ -12,6 +14,7 @@ from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore
 
 from fastapi import FastAPI, HTTPException  # type: ignore
+from fastapi.responses import StreamingResponse  # type: ignore
 from fastapi.staticfiles import StaticFiles  # type: ignore
 from pydantic import BaseModel  # type: ignore
 
@@ -314,6 +317,8 @@ class GenerateRequest(BaseModel):
     sample_posts: str = ""
     pillar_text: str
     n_posts: int = 3
+    use_trending_news: bool = False
+    feed_url: str = "https://techcrunch.com/feed/"
 
 @app.post("/api/generate")
 async def generate_posts(req: GenerateRequest):
@@ -323,35 +328,41 @@ async def generate_posts(req: GenerateRequest):
         raise HTTPException(status_code=400, detail="Missing pillar text")
 
     try:
-        # 1) Brand voice
-        brand_profile_raw = await mcp_client.call_tool(
-            "analyze_brand_voice",
-            {"brand_desc": req.brand_desc, "samples": req.sample_posts},
-        )
-        brand_profile = _normalise_brand_profile(brand_profile_raw)
-        
-        if isinstance(brand_profile, dict) and "error" in brand_profile:
-             raise HTTPException(status_code=500, detail=brand_profile["error"])
+        # Fetch trending news first (fast, just RSS scraping - not an LLM call)
+        trending_context = ""
+        if req.use_trending_news:
+            news_raw = await mcp_client.call_tool(
+                "fetch_trending_news",
+                {"feed_url": req.feed_url},
+            )
+            if isinstance(news_raw, dict) and "trending_news" in news_raw:
+                trending_context = news_raw["trending_news"]
+            elif isinstance(news_raw, str):
+                trending_context = news_raw
 
-        # 2) Pillar summary
-        pillar_summary_raw = await mcp_client.call_tool(
-            "summarise_pillar",
-            {"pillar_text": req.pillar_text, "brand_profile": brand_profile},
-        )
-        pillar_summary = _normalise_pillar_summary(pillar_summary_raw)
-        
-        if isinstance(pillar_summary, dict) and "error" in pillar_summary:
-             raise HTTPException(status_code=500, detail=pillar_summary["error"])
-
-        # 3) LinkedIn posts
-        posts_raw = await mcp_client.call_tool(
-            "generate_linkedin_posts",
+        # Single LLM call for EVERYTHING (brand profile + summary + posts)
+        result_raw = await mcp_client.call_tool(
+            "fast_generate",
             {
+                "brand_desc": req.brand_desc,
                 "pillar_text": req.pillar_text,
-                "brand_profile": brand_profile,
                 "n_posts": int(req.n_posts),
+                "trending_context": trending_context,
+                "sample_posts": req.sample_posts,
             },
         )
+
+        if isinstance(result_raw, dict) and "error" in result_raw:
+            raise HTTPException(status_code=500, detail=result_raw["error"])
+
+        # Extract the three parts from the combined response
+        brand_profile = _normalise_brand_profile(
+            result_raw.get("brand_profile", result_raw) if isinstance(result_raw, dict) else result_raw
+        )
+        pillar_summary = _normalise_pillar_summary(
+            result_raw.get("pillar_summary", {}) if isinstance(result_raw, dict) else {}
+        )
+        posts_raw = result_raw.get("posts", []) if isinstance(result_raw, dict) else []
         posts = _normalise_posts(posts_raw)
 
         return {
@@ -359,6 +370,61 @@ async def generate_posts(req: GenerateRequest):
             "pillar_summary": pillar_summary,
             "posts": posts
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class ExportCSVRequest(BaseModel):
+    posts: List[Dict[str, Any]]
+
+@app.post("/api/export-csv")
+async def export_txt(req: ExportCSVRequest):
+    """Converts generated posts into a plain .txt file that opens in Notepad."""
+    days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    lines = []
+    lines.append("LINKEDIN CONTENT CALENDAR")
+    lines.append("=" * 50)
+    lines.append("")
+    for i, post in enumerate(req.posts):
+        day = days[i % len(days)]
+        lines.append(f"--- POST #{i+1} | {day} | {post.get('format_hint', 'general').upper()} ---")
+        lines.append(f"Title   : {post.get('title', '')}")
+        lines.append(f"Hook    : {post.get('hook', '')}")
+        lines.append("")
+        lines.append(post.get("body", ""))
+        lines.append("")
+        lines.append(f"CTA     : {post.get('CTA', '')}")
+        lines.append("")
+        lines.append("=" * 50)
+        lines.append("")
+    content = "\r\n".join(lines)  # Windows line endings for Notepad
+    return StreamingResponse(
+        iter([content]),
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=linkedin_content_calendar.txt"},
+    )
+
+class ImagePromptsRequest(BaseModel):
+    posts: List[Dict[str, Any]]
+
+@app.post("/api/image-prompts")
+async def get_image_prompts(req: ImagePromptsRequest):
+    """Generate Midjourney/DALL-E image prompts for a list of LinkedIn posts."""
+    if not req.posts:
+        raise HTTPException(status_code=400, detail="No posts provided")
+    try:
+        result = await mcp_client.call_tool(
+            "generate_image_prompts",
+            {"posts": req.posts},
+        )
+        if isinstance(result, dict) and "error" in result:
+            raise HTTPException(status_code=500, detail=result["error"])
+        # Normalise: result may be {"image_prompts": [...]} or a list
+        if isinstance(result, dict) and "image_prompts" in result:
+            return {"image_prompts": result["image_prompts"]}
+        if isinstance(result, list):
+            return {"image_prompts": result}
+        return {"image_prompts": [result]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
