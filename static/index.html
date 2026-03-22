@@ -3,59 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LinkedIn Content Creator Pro</title>
+    <title>LinkedIn Content Creator Pro | AI-Powered Repurposing Engine</title>
+    <meta name="description" content="Turn long-form pillar content into premium LinkedIn posts using local Llama 3.2 + MCP agentic workflows. Free, private, and powerful.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+
     <!-- Particle Canvas Background -->
     <canvas id="particleCanvas"></canvas>
-    
+
+    <!-- Ambient Glow Orbs -->
     <div class="glow-orb orb-1"></div>
     <div class="glow-orb orb-2"></div>
+    <div class="glow-orb orb-3"></div>
 
-    <div class="container">
-        <header>
-            <h1>LinkedIn Content Creator Pro</h1>
-            <p>AI-powered pillar content repurposing. Turn long-form writing into premium posts.</p>
-        </header>
-
-        <div class="grid">
-            <div class="card form-panel">
-                <div class="tabs" id="mode-tabs" style="justify-content: center; margin-bottom: 25px;">
-                    <div class="tab mode-tab active" data-target="mode-manual">Manual Studio</div>
-                    <div class="tab mode-tab" data-target="mode-factory">Automated Factory</div>
+    <!-- Top Navigation Bar -->
+    <nav class="topbar">
+        <div class="topbar-inner">
+            <div class="topbar-brand">
+                <div class="brand-hex">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2L3 7V17L12 22L21 17V7L12 2Z" fill="url(#hexGrad)" stroke="rgba(189,157,255,0.4)" stroke-width="1"/><defs><linearGradient id="hexGrad" x1="3" y1="2" x2="21" y2="22" gradientUnits="userSpaceOnUse"><stop stop-color="#7c3aed"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs></svg>
                 </div>
+                <div>
+                    <div class="brand-name">Content Creator Pro</div>
+                    <div class="brand-sub">Agentic LinkedIn Engine</div>
+                </div>
+            </div>
+            <div class="topbar-status">
+                <div class="status-chip status-connected">
+                    <span class="neural-pulse"></span>
+                    <span class="status-label">Ollama · llama3.2</span>
+                </div>
+                <div class="mcp-badge">MCP</div>
+            </div>
+        </div>
+    </nav>
 
-                <!-- Mode 1: Manual Generation -->
-                <div id="mode-manual" class="mode-content" style="display: block;">
-                    <form id="creator-form">
+    <!-- Main App Shell -->
+    <div class="app-shell">
+
+        <!-- LEFT PANEL — INPUT STUDIO -->
+        <div class="panel panel-input glass-card">
+
+            <!-- Panel Header -->
+            <div class="panel-header">
+                <div class="panel-title">Input Studio</div>
+                <div class="mcp-pipeline-mini">
+                    <span class="mono-text">analyze_brand</span>
+                    <span class="pipe-arrow">→</span>
+                    <span class="mono-text">summarise_pillar</span>
+                    <span class="pipe-arrow">→</span>
+                    <span class="mono-text">generate_posts</span>
+                </div>
+            </div>
+
+            <!-- Mode Switcher Tabs -->
+            <div class="mode-switcher tabs" id="mode-tabs">
+                <div class="tab mode-tab active" id="tab-manual-mode" data-target="mode-manual">
+                    Manual Studio
+                </div>
+                <div class="tab mode-tab" id="tab-factory-mode" data-target="mode-factory">
+                    Automated Factory
+                </div>
+            </div>
+
+            <!-- MODE 1: Manual Generation -->
+            <div id="mode-manual" class="mode-content" style="display: block;">
+                <form id="creator-form">
+
                     <div class="form-group">
                         <label for="brand_desc">Brand / Creator Description</label>
-                        <textarea id="brand_desc" rows="2" placeholder="Who are you? What do you talk about? Who is your audience?" required></textarea>
+                        <textarea id="brand_desc" rows="2" placeholder="Who are you? What topics do you cover? Who is your audience?" required></textarea>
                     </div>
 
                     <div class="form-group">
-                        <label for="sample_posts">Sample LinkedIn Posts (Optional)</label>
-                        <textarea id="sample_posts" rows="2" placeholder="Paste 1-3 of your LinkedIn posts so we can match your style."></textarea>
+                        <label for="sample_posts">
+                            Sample LinkedIn Posts <span class="label-optional">Optional</span>
+                        </label>
+                        <textarea id="sample_posts" rows="2" placeholder="Paste 1-3 of your LinkedIn posts to match your tone and style."></textarea>
                     </div>
 
                     <div class="form-group">
                         <label for="pillar_text">Pillar Content</label>
-                        <textarea id="pillar_text" rows="6" placeholder="Paste a long-form article, transcript, or detailed post you want to repurpose." required></textarea>
+                        <textarea id="pillar_text" rows="6" placeholder="Paste a long-form article, transcript, or detailed post to repurpose." required></textarea>
                     </div>
 
-                    <div class="form-group">
-                        <label for="n_posts">Number of Outputs</label>
-                        <input type="number" id="n_posts" min="1" max="10" value="3" required>
-                    </div>
-
-                    <div class="form-group toggle-group">
-                        <label class="toggle-label">
-                            <input type="checkbox" id="use_trending_news">
-                            <span class="toggle-switch"></span>
-                            <span>Inject Today's Trending News (via RSS)</span>
-                        </label>
+                    <div class="form-row">
+                        <div class="form-group form-group-half">
+                            <label for="n_posts">Output Count</label>
+                            <input type="number" id="n_posts" min="1" max="10" value="3" required>
+                        </div>
+                        <div class="form-group form-group-half toggle-group">
+                            <label class="toggle-label">
+                                <input type="checkbox" id="use_trending_news">
+                                <span class="toggle-switch"></span>
+                                <span class="toggle-text">
+                                    <span class="toggle-title">Inject Trending News</span>
+                                    <span class="toggle-hint">via RSS · RAG</span>
+                                </span>
+                            </label>
+                        </div>
                     </div>
 
                     <div class="form-group" id="feed-url-group" style="display:none;">
@@ -63,112 +113,188 @@
                         <input type="url" id="feed_url" value="https://techcrunch.com/feed/" placeholder="https://yoursource.com/feed/">
                     </div>
 
-                    <button type="submit" id="submit-btn" class="glass-btn">
+                    <button type="submit" id="submit-btn" class="cta-btn">
                         <span id="btn-text">Generate Content Pack</span>
                         <div class="loader" id="loader"></div>
                     </button>
-                    <div id="error-message" style="color: #ff4d4d; margin-top: 15px; display: none;"></div>
-                    </form>
+
+                    <div id="error-message" class="error-box" style="display: none;"></div>
+
+                </form>
+            </div>
+
+            <!-- MODE 2: Automated Factory Pipeline -->
+            <div id="mode-factory" class="mode-content" style="display: none;">
+
+                <div class="factory-info-card">
+                    <p>Simulate the background <strong>CRON pipeline</strong>. The system autonomously scrapes an RSS feed, injects breaking news via <strong>RAG</strong>, runs <strong>Llama 3.2</strong> locally, and dispatches an approval email to your team.</p>
                 </div>
 
-                <!-- Mode 2: Automated Pipeline -->
-                <div id="mode-factory" class="mode-content" style="display: none;">
-                    <p style="color: #a1a1aa; font-size: 0.95rem; margin-bottom: 25px; line-height: 1.5;">
-                        This mode simulates the background CRON job. It uses Python to scrape an RSS feed, injects breaking news via <strong>RAG</strong>, runs the local <strong>Llama 3.2</strong> model, and drafts an email to your marketing team.
-                    </p>
-                    
-                    <div class="form-group">
-                        <label for="trigger_feed">Target RSS Feed URL</label>
-                        <input type="url" id="trigger_feed" value="https://techcrunch.com/feed/" required>
+                <div class="form-group">
+                    <label for="trigger_feed">Target RSS Feed URL</label>
+                    <input type="url" id="trigger_feed" value="https://techcrunch.com/feed/" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="trigger_email">Target Email Address</label>
+                    <input type="email" id="trigger_email" value="marketing_manager@company.com" required>
+                </div>
+
+                <button type="button" id="trigger-btn" class="cta-btn cta-btn-factory">
+                    <span id="trigger-btn-text">Execute Automated Pipeline</span>
+                    <div class="loader" id="trigger-loader"></div>
+                </button>
+
+                <div id="trigger-message" class="factory-log-area"></div>
+
+                <!-- Pipeline Stages -->
+                <div class="pipeline-stages" id="pipeline-stages" style="display:none;">
+                    <div class="stage-item stage-done">
+                        <div class="stage-dot dot-cyan"></div>
+                        <div class="stage-content">
+                            <span class="stage-label">Fetching RSS Feed</span>
+                            <span class="stage-status mono-text">DONE</span>
+                        </div>
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="trigger_email">Target Email Address</label>
-                        <input type="email" id="trigger_email" value="marketing_manager@company.com" required>
+                    <div class="stage-connector"></div>
+                    <div class="stage-item stage-active">
+                        <div class="stage-dot dot-amber pulsing"></div>
+                        <div class="stage-content">
+                            <span class="stage-label">RAG — Breaking News</span>
+                            <span class="stage-status mono-text status-running">RUNNING</span>
+                        </div>
                     </div>
-                    
-                    <button type="button" id="trigger-btn" class="glass-btn" style="background: linear-gradient(135deg, #4c1d95, #6d28d9); margin-top: 10px;">
-                        <span id="trigger-btn-text">Execute Automated Pipeline</span>
-                        <div class="loader" id="trigger-loader"></div>
-                    </button>
-                    
-                    <div id="trigger-message" style="margin-top: 15px; white-space: pre-wrap; font-family: monospace; font-size: 0.85rem; color: #a1a1aa;"></div>
+                    <div class="stage-connector"></div>
+                    <div class="stage-item stage-pending">
+                        <div class="stage-dot dot-muted"></div>
+                        <div class="stage-content">
+                            <span class="stage-label">Llama 3.2 Generating</span>
+                            <span class="stage-status mono-text">PENDING</span>
+                        </div>
+                    </div>
+                    <div class="stage-connector"></div>
+                    <div class="stage-item stage-pending">
+                        <div class="stage-dot dot-muted"></div>
+                        <div class="stage-content">
+                            <span class="stage-label">Dispatching Email</span>
+                            <span class="stage-status mono-text">PENDING</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Panel Footer -->
+            <div class="panel-footer">
+                <span class="mono-text footer-stack">Ollama → MCP → FastAPI → APScheduler</span>
+            </div>
+
+        </div>
+
+        <!-- RIGHT PANEL — RESULTS STUDIO -->
+        <div class="panel panel-results results-panel glass-card" id="results-panel">
+
+            <!-- Panel Header -->
+            <div class="panel-header">
+                <div class="panel-title">Results Studio</div>
+                <div class="live-indicator">
+                    <span class="live-dot"></span>
+                    <span class="live-label">Live</span>
                 </div>
             </div>
 
-            <!-- Right Panel: Results -->
-            <div class="card results-panel" id="results-panel">
+            <!-- Result Tabs -->
+            <div class="tabs result-tabs" id="main-tabs">
+                <div class="tab active" data-target="tab-posts">Posts</div>
+                <div class="tab" data-target="tab-meta">Analysis Meta</div>
+                <div class="tab" data-target="tab-images" id="tab-images-btn">Image Prompts</div>
+                <div class="tab tab-email-special" data-target="tab-email" id="tab-email-btn" style="display: none;">Email Draft</div>
+            </div>
+
+            <!-- Tab: Posts -->
+            <div id="tab-posts" class="tab-content active">
+
+                <!-- Empty State -->
                 <div class="empty-state" id="empty-state">
-                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline>
-                        <line x1="16" y1="13" x2="8" y2="13"></line>
-                        <line x1="16" y1="17" x2="8" y2="17"></line>
-                        <polyline points="10 9 9 9 8 9"></polyline>
-                    </svg>
-                    <h2>Waiting for input...</h2>
-                    <p>Your generated LinkedIn posts will magically appear here.</p>
+                    <div class="empty-orb"></div>
+                    <div class="empty-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                        </svg>
+                    </div>
+                    <h2 class="empty-title">Waiting for input...</h2>
+                    <p class="empty-sub">Your AI-generated LinkedIn posts will appear here.</p>
+                    <div class="empty-chips">
+                        <span class="empty-chip">Story Format</span>
+                        <span class="empty-chip">Listicle</span>
+                        <span class="empty-chip">Thought Leadership</span>
+                    </div>
                 </div>
 
+                <!-- Results Content -->
                 <div id="results-content" style="display: none;">
-                    <div class="tabs" id="main-tabs">
-                        <div class="tab active" data-target="tab-posts">Posts</div>
-                        <div class="tab" data-target="tab-meta">Analysis Meta</div>
-                        <div class="tab" data-target="tab-images" id="tab-images-btn">Image Prompts</div>
-                        <div class="tab" data-target="tab-email" id="tab-email-btn" style="display: none; background: rgba(139, 92, 246, 0.2); border: 1px solid rgba(139, 92, 246, 0.4);">Email Draft</div>
+                    <div id="posts-container"></div>
+                    <div id="csv-bar" style="display:none; margin-top: 20px; text-align: center;">
+                        <button type="button" id="download-csv-btn" class="secondary-btn btn-emerald">
+                            Download Content Calendar (.txt)
+                        </button>
                     </div>
+                </div>
 
-                    <div id="tab-posts" class="tab-content active">
-                        <div id="posts-container"></div>
-                        <div id="csv-bar" style="display:none; margin-top: 18px; text-align: center;">
-                            <button type="button" id="download-csv-btn" class="glass-btn" style="background: linear-gradient(135deg, #065f46, #059669); font-size: 0.9rem; padding: 10px 22px;">
-                                Download Content Calendar (.txt)
-                            </button>
+            </div>
+
+            <!-- Tab: Analysis Meta -->
+            <div id="tab-meta" class="tab-content">
+                <div class="meta-section">
+                    <div class="meta-section-title">Brand Voice Profile</div>
+                    <div class="meta-box" id="meta-brand"></div>
+                </div>
+                <div class="meta-section">
+                    <div class="meta-section-title">Pillar Content Summary</div>
+                    <div class="meta-box" id="meta-summary"></div>
+                </div>
+            </div>
+
+            <!-- Tab: Image Prompts -->
+            <div id="tab-images" class="tab-content">
+                <div class="image-prompt-header">
+                    <button type="button" id="gen-images-btn" class="cta-btn cta-btn-pink">
+                        <span id="gen-images-text">Generate Image Prompts</span>
+                        <div class="loader" id="gen-images-loader"></div>
+                    </button>
+                    <p id="gen-images-hint" class="image-hint">Generate Midjourney &amp; DALL·E style prompts for each post above.</p>
+                </div>
+                <div id="image-prompts-container"></div>
+            </div>
+
+            <!-- Tab: Email Draft -->
+            <div id="tab-email" class="tab-content">
+                <div class="email-shell">
+                    <div class="email-header-bar">
+                        <div class="email-to-row">
+                            <span class="email-field-label">To:</span>
+                            <span id="email-mock-to" class="email-field-value">manager@company.com</span>
                         </div>
-                    </div>
-
-                    <div id="tab-meta" class="tab-content">
-                        <div class="meta-title">Brand Voice Profile</div>
-                        <div class="meta-box" id="meta-brand"></div>
-                        
-                        <div class="meta-title">Pillar Content Summary</div>
-                        <div class="meta-box" id="meta-summary"></div>
-                    </div>
-
-                    <div id="tab-images" class="tab-content">
-                        <div style="text-align:center; margin-bottom: 20px;">
-                            <button type="button" id="gen-images-btn" class="glass-btn" style="background: linear-gradient(135deg, #831843, #be185d); padding: 12px 28px; font-size: 0.95rem;">
-                                <span id="gen-images-text">Generate Image Prompts</span>
-                                <div class="loader" id="gen-images-loader"></div>
-                            </button>
-                            <p id="gen-images-hint" style="margin-top:10px; color:#a1a1aa; font-size:0.85rem;">Click to generate Midjourney & DALL-E prompts for each post above.</p>
+                        <div class="email-subject-row">
+                            <span class="email-field-label">Subject:</span>
+                            <span id="email-mock-subject" class="email-subject-text">New LinkedIn Posts Ready for Approval!</span>
                         </div>
-                        <div id="image-prompts-container"></div>
+                        <div class="email-timestamp">Just Now</div>
                     </div>
-
-                    <div id="tab-email" class="tab-content">
-                        <div class="email-container" style="background: #ffffff; color: #1e293b; border-radius: 8px; overflow: hidden; font-family: 'Helvetica Neue', Arial, sans-serif;">
-                            <div class="email-header" style="background: #f8fafc; padding: 15px 20px; border-bottom: 1px solid #e2e8f0;">
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                                    <span style="font-weight: 600; font-size: 14px;">To: <span id="email-mock-to" style="font-weight: 400; color: #64748b;">manager@company.com</span></span>
-                                    <span style="font-size: 13px; color: #94a3b8;">Just Now</span>
-                                </div>
-                                <div style="font-size: 18px; font-weight: 700; color: #0f172a;">Subject: <span id="email-mock-subject">New LinkedIn Posts Ready for Approval!</span></div>
-                            </div>
-                            <div class="email-body" style="padding: 20px; font-size: 15px; line-height: 1.6; white-space: pre-wrap;" id="email-mock-body">
-                                <!-- Email text goes here -->
-                            </div>
-                            <div class="email-footer" style="padding: 15px 20px; border-top: 1px solid #e2e8f0; background: #f8fafc;">
-                                <button type="button" id="send-real-email-btn" style="background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;">
-                                    <span id="send-email-text">Send this Email for Real</span>
-                                    <div class="loader" id="send-email-loader" style="width: 15px; height: 15px; border-width: 2px;"></div>
-                                </button>
-                                <div id="send-email-message" style="margin-top: 10px; font-size: 13px; text-align: center;"></div>
-                            </div>
-                        </div>
+                    <div class="email-body-area" id="email-mock-body"></div>
+                    <div class="email-footer-bar">
+                        <button type="button" id="send-real-email-btn" class="cta-btn cta-btn-blue">
+                            <span id="send-email-text">Send this Email for Real</span>
+                            <div class="loader" id="send-email-loader"></div>
+                        </button>
+                        <div id="send-email-message" class="send-email-msg"></div>
                     </div>
                 </div>
             </div>
+
         </div>
     </div>
 
