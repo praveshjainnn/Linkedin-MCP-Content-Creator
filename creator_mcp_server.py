@@ -6,20 +6,37 @@ from mcp.server.fastmcp import FastMCP  # type: ignore
 
 mcp = FastMCP("linkedin_creator_tools")
 
+# ── Speed knobs ──────────────────────────────────────────────
+# Truncate pillar text before it reaches the LLM.
+PILLAR_CHAR_LIMIT = 3000
+
+# Ollama generation options — the single biggest latency lever.
+# num_predict caps output tokens; num_ctx caps the context window.
+OLLAMA_OPTIONS = {
+    "num_predict": 800,   # max tokens to generate  (~600 words)
+    "num_ctx":     3072,  # context window (reduce from default 4096)
+    "temperature": 0.7,
+}
+
+# Hard timeout for every Ollama HTTP call (seconds).
+OLLAMA_TIMEOUT = 120
+# ─────────────────────────────────────────────────────────────
+
 def _safe_chat_json(prompt: str) -> Dict[str, Any]:
     url = "http://localhost:11434/api/chat"
     data = {
         "model": "llama3.2",
         "messages": [{"role": "user", "content": prompt}],
         "stream": False,
-        "format": "json"
+        "format": "json",
+        "options": OLLAMA_OPTIONS,
     }
     
     req = urllib.request.Request(url, data=json.dumps(data).encode('utf-8'))
     req.add_header('Content-Type', 'application/json')
     
     try:
-        with urllib.request.urlopen(req) as response:
+        with urllib.request.urlopen(req, timeout=OLLAMA_TIMEOUT) as response:
             result_str = response.read().decode('utf-8')
             result_json = json.loads(result_str)
             content = result_json.get("message", {}).get("content", "")
@@ -68,8 +85,14 @@ async def fast_generate(
     sample_posts: str = "",
 ) -> Dict[str, Any]:
     """Single-call tool: analyses brand, summarises pillar, and writes posts in ONE LLM pass."""
-    news_section = f"\nToday's Trending News (weave at least one headline into a post hook):\n{trending_context}" if trending_context else ""
-    samples_section = f"\nSample posts for style reference:\n{sample_posts}" if sample_posts else ""
+    # Truncate inputs to keep the prompt lean and generation fast.
+    pillar_text    = pillar_text.strip()[:PILLAR_CHAR_LIMIT]
+    brand_desc     = brand_desc.strip()[:500]
+    sample_posts   = sample_posts.strip()[:800]
+    trending_context = trending_context.strip()[:400]
+
+    news_section = f"\nTrending News (weave into at least one hook):\n{trending_context}" if trending_context else ""
+    samples_section = f"\nStyle reference posts:\n{sample_posts}" if sample_posts else ""
 
     prompt = f"""You are an expert LinkedIn ghostwriter. Complete all three tasks below in a single JSON response.
 
