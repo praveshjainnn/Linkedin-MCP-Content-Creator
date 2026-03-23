@@ -225,7 +225,7 @@ async def run_automated_pipeline(user_feed: str = "https://techcrunch.com/feed/"
     
     # Get Trending News RAG
     print("[FETCHING] World news context for RAG injection...")
-    news_raw = await mcp_client.call_tool("fetch_trending_news", {"source": "techcrunch"})
+    news_raw = await mcp_client.call_tool("fetch_trending_news", {"feed_url": "https://techcrunch.com/feed/"})
     trending_context = news_raw.get("trending_news", "No news available.") if isinstance(news_raw, dict) else str(news_raw)
     
     # 3. AI Engine Phase

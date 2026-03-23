@@ -1,6 +1,7 @@
 import json
 import urllib.request
-from typing import List, Dict, Any
+import xml.etree.ElementTree as ET
+from typing import Any, Dict, List, Optional
 
 from mcp.server.fastmcp import FastMCP  # type: ignore
 
@@ -22,7 +23,7 @@ OLLAMA_OPTIONS = {
 OLLAMA_TIMEOUT = 120
 # ─────────────────────────────────────────────────────────────
 
-def _safe_chat_json(prompt: str) -> Dict[str, Any]:
+def _safe_chat_json(prompt: str) -> Dict[str, Any]:  # type: ignore[return]
     url = "http://localhost:11434/api/chat"
     data = {
         "model": "llama3.2",
@@ -50,7 +51,7 @@ def _safe_chat_json(prompt: str) -> Dict[str, Any]:
     except Exception as e:
         return {"error": f"Ollama Connection Error ({type(e).__name__}): {e}. Make sure Ollama is running and you have pulled the llama3.2 model."}
 
-import xml.etree.ElementTree as ET
+# xml import moved to top of file
 
 @mcp.tool()
 async def fetch_trending_news(feed_url: str = "https://techcrunch.com/feed/") -> Dict[str, Any]:
@@ -86,10 +87,10 @@ async def fast_generate(
 ) -> Dict[str, Any]:
     """Single-call tool: analyses brand, summarises pillar, and writes posts in ONE LLM pass."""
     # Truncate inputs to keep the prompt lean and generation fast.
-    pillar_text    = pillar_text.strip()[:PILLAR_CHAR_LIMIT]
-    brand_desc     = brand_desc.strip()[:500]
-    sample_posts   = sample_posts.strip()[:800]
-    trending_context = trending_context.strip()[:400]
+    pillar_text      = pillar_text.strip()[:int(PILLAR_CHAR_LIMIT)]  # type: ignore[misc]
+    brand_desc       = brand_desc.strip()[:500]        # type: ignore[misc]
+    sample_posts     = sample_posts.strip()[:800]      # type: ignore[misc]
+    trending_context = trending_context.strip()[:400]  # type: ignore[misc]
 
     news_section = f"\nTrending News (weave into at least one hook):\n{trending_context}" if trending_context else ""
     samples_section = f"\nStyle reference posts:\n{sample_posts}" if sample_posts else ""
