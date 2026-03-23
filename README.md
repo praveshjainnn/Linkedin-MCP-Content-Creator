@@ -40,6 +40,33 @@ A background simulation of a true Productivity Engine. When triggered (either vi
    ```
 4. Open your browser and navigate to `http://localhost:1337` to view the UI.
 
+## 🐳 Docker Deployment
+
+This project is fully containerized and can be run with Docker — no local Python or pip setup required.
+
+### Prerequisites
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
+- [Ollama](https://ollama.com/) running on your **host machine** (the container calls it via `host.docker.internal`).
+
+### 1. Build the Image
+```bash
+docker build -t praveshjainnn/linkedin-mcp-creator .
+```
+
+### 2. Run the Container
+
+docker run -p 1337:1337 praveshjainnn/linkedin-mcp-creator
+Open your browser → **http://localhost:1337**
+
+
+
+
+
+
+> ⚠️ **Ollama Note:** Make sure `ollama serve` is running on your host and you have pulled the model: `ollama pull llama3.2`
+
+---
+
 ## 🧱 The MCP Tools under the hood
 The `creator_mcp_server.py` defines the core Agent tasks via FastMCP:
   - `analyze_brand_voice`

@@ -1,4 +1,18 @@
-gradio>=4.0.0
+# Web server
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+
+# Scheduler (used by server.py for the daily pipeline)
+apscheduler>=3.10.0
+
+# MCP SDK (client + server)
 mcp>=1.22.0
+
+# Gradio UI (app.py)
+gradio>=4.0.0
+
+# OpenAI SDK (used by creator_mcp_server.py / app.py)
 openai>=1.30.0
+
+# Async helpers
 anyio
