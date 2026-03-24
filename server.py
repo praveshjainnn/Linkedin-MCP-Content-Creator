@@ -413,19 +413,30 @@ async def get_image_prompts(req: ImagePromptsRequest):
     if not req.posts:
         raise HTTPException(status_code=400, detail="No posts provided")
     try:
+        print(f"[IMAGE PROMPTS] Generating for {len(req.posts)} posts...")
         result = await mcp_client.call_tool(
             "generate_image_prompts",
             {"posts": req.posts},
         )
+        print(f"[IMAGE PROMPTS] Raw result type: {type(result).__name__}")
         if isinstance(result, dict) and "error" in result:
+            print(f"[IMAGE PROMPTS] ERROR from MCP tool: {result['error']}")
             raise HTTPException(status_code=500, detail=result["error"])
         # Normalise: result may be {"image_prompts": [...]} or a list
         if isinstance(result, dict) and "image_prompts" in result:
-            return {"image_prompts": result["image_prompts"]}
+            prompts = result["image_prompts"]
+            print(f"[IMAGE PROMPTS] Success! Got {len(prompts)} prompt groups.")
+            return {"image_prompts": prompts}
         if isinstance(result, list):
+            print(f"[IMAGE PROMPTS] Got list of {len(result)} items.")
             return {"image_prompts": result}
+        # Fallback — log unexpected shape
+        print(f"[IMAGE PROMPTS] Unexpected shape, wrapping as single item: {str(result)[:200]}")
         return {"image_prompts": [result]}
+    except HTTPException:
+        raise
     except Exception as e:
+        print(f"[IMAGE PROMPTS] Exception: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 static_path = os.path.join(os.path.dirname(__file__), "static")

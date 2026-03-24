@@ -21,23 +21,36 @@ OLLAMA_OPTIONS = {
 
 # Hard timeout for every Ollama HTTP call (seconds).
 OLLAMA_TIMEOUT = 120
+
+# Larger limits for image-prompt generation (9 detailed prompts = lots of tokens).
+OLLAMA_OPTIONS_LARGE = {
+    "num_predict": 2048,  # image prompts are verbose; 800 was truncating mid-JSON
+    "num_ctx":     4096,
+    "temperature": 0.7,
+}
+OLLAMA_TIMEOUT_LARGE = 180
 # ─────────────────────────────────────────────────────────────
 
-def _safe_chat_json(prompt: str) -> Dict[str, Any]:  # type: ignore[return]
+def _safe_chat_json(
+    prompt: str,
+    options: Optional[Dict] = None,
+    timeout: int = OLLAMA_TIMEOUT,
+) -> Dict[str, Any]:  # type: ignore[return]
+    """Send a chat request to Ollama and return parsed JSON."""
     url = "http://localhost:11434/api/chat"
     data = {
         "model": "llama3.2",
         "messages": [{"role": "user", "content": prompt}],
         "stream": False,
         "format": "json",
-        "options": OLLAMA_OPTIONS,
+        "options": options or OLLAMA_OPTIONS,
     }
     
     req = urllib.request.Request(url, data=json.dumps(data).encode('utf-8'))
     req.add_header('Content-Type', 'application/json')
     
     try:
-        with urllib.request.urlopen(req, timeout=OLLAMA_TIMEOUT) as response:
+        with urllib.request.urlopen(req, timeout=timeout) as response:
             result_str = response.read().decode('utf-8')
             result_json = json.loads(result_str)
             content = result_json.get("message", {}).get("content", "")
@@ -46,7 +59,7 @@ def _safe_chat_json(prompt: str) -> Dict[str, Any]:  # type: ignore[return]
                 try:
                     return json.loads(content)
                 except Exception:
-                    return {"message": content}
+                    return {"error": f"LLM returned invalid JSON. Raw content: {content[:500]}"}
             return {"message": str(content)}
     except Exception as e:
         return {"error": f"Ollama Connection Error ({type(e).__name__}): {e}. Make sure Ollama is running and you have pulled the llama3.2 model."}
@@ -237,53 +250,40 @@ async def generate_image_prompts(
     posts: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
     """For each LinkedIn post, generate 3 distinct Midjourney/DALL-E prompt variations."""
+    # Limit to first 5 posts to keep output manageable for the LLM.
+    posts = posts[:5]
     posts_text = "\n\n".join(
-        f"Post #{i+1}\nTitle: {p.get('title', 'Untitled')}\nHook: {p.get('hook', '')}\nTheme: {p.get('body', '')[:300]}"
+        f"Post #{i+1}\nTitle: {p.get('title', 'Untitled')}\nHook: {p.get('hook', '')}\nTheme: {p.get('body', '')[:200]}"
         for i, p in enumerate(posts)
     )
-    prompt = f"""You are a world-class creative director specializing in LinkedIn social media visuals.
+    prompt = f"""You are a creative director for LinkedIn visuals.
 
-For EACH LinkedIn post below, produce EXACTLY 3 image prompt variations.
-Each variation must use a DIFFERENT visual style and must directly reflect the POST'S SPECIFIC MESSAGE and theme — not generic business imagery.
+For EACH post below, produce EXACTLY 3 image-prompt variations in 3 styles:
+1. "3D Render" - surreal, geometric, dramatic lighting
+2. "Cinematic Photo" - photo-realistic, moody scene
+3. "Flat Illustration" - clean vector, bold palette
 
-The 3 styles must be:
-1. "3D Render" — surreal, geometric, dramatic lighting, depth of field
-2. "Cinematic Photo" — photo-realistic, moody, story-driven, specific scene
-3. "Flat Illustration" — clean vector style, bold palette, modern editorial
-
-Rules for every prompt:
-- 2-3 sentences, rich and specific
-- Mention exact colors, mood, lighting, and composition
-- Tie the SUBJECT directly to the post's core idea
-- Ready to paste into Midjourney (v6) or DALL-E 3
+Each prompt: 1-2 sentences, mention colors/mood/lighting. Tie it to the post's core idea.
 
 Posts:
 {posts_text}
 
-Return ONLY this exact JSON structure, no extra text:
+Return ONLY valid JSON in this exact shape:
 {{
   "image_prompts": [
     {{
       "post_number": 1,
-      "title": "exact post title here",
+      "title": "post title",
       "variations": [
-        {{
-          "style": "3D Render",
-          "prompt": "..."
-        }},
-        {{
-          "style": "Cinematic Photo",
-          "prompt": "..."
-        }},
-        {{
-          "style": "Flat Illustration",
-          "prompt": "..."
-        }}
+        {{"style": "3D Render", "prompt": "..."}},
+        {{"style": "Cinematic Photo", "prompt": "..."}},
+        {{"style": "Flat Illustration", "prompt": "..."}}
       ]
     }}
   ]
 }}"""
-    return _safe_chat_json(prompt)
+    # Use LARGE options so the LLM has enough tokens to write all 9+ prompts.
+    return _safe_chat_json(prompt, options=OLLAMA_OPTIONS_LARGE, timeout=OLLAMA_TIMEOUT_LARGE)
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")
